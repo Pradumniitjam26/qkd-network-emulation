@@ -167,7 +167,7 @@ class InterKMSClient:
                         self.audit.log(
                             "KEY_SYNCED",
                             f"{key.key_id} synced from {peer_name}",
-                            
+                            plane="INTER-KMS"
                         )
 
                         success = True
@@ -177,13 +177,13 @@ class InterKMSClient:
 
                         self.audit.error(
                             f"Attempt {attempt+1} failed from {peer_name}: {str(e)}",
-                            
+                            plane="INTER-KMS"
                         )
 
                 if not success:
                     self.audit.error(
                         f"Failed to sync key {expected_key_id} from {peer_name}",
-                        
+                        plane="INTER-KMS"
                     )
 
             time.sleep(INTERKMS_SYNC_INTERVAL)

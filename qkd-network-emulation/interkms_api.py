@@ -57,7 +57,7 @@ def create_interkms_router(buffer, audit, ack_manager):
         requester = request.headers.get("X-Node-ID", "UNKNOWN")
 
         audit.api("/interkms/v1/request-key")
-        
+        audit.interkms_request(requester)
 
         try:
             body = await request.json()

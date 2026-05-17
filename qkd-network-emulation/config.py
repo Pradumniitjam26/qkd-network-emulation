@@ -33,7 +33,7 @@ SYNC_SEED = "QKD_SHARED_SEED_2026"
 # =================================================
 
 HOST = "0.0.0.0"
-PORT = 8000
+PORT = 8001
 
 # =================================================
 # KEY CONFIGURATION
@@ -72,8 +72,8 @@ INTERKMS_SYNC_INTERVAL = 10
 # Define both nodes properly
 
 PEER_NODES = {
-    "IITR": "http://localhost:8000",
-    "IITJ": "http://localhost:8001"
+    "IITR": "http://10.13.2.132:8000",
+    "IITJ": "http://10.13.2.132:8001"
 }
 
 # Get peer dynamically
