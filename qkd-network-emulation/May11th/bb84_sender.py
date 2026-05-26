@@ -165,7 +165,10 @@ class BB84Sender:
             "QUANTUM"
         )
 
-        with CQCConnection("Alice") as Alice:
+        with CQCConnection(
+    "Alice",
+    socket_address=("127.0.0.1", 8001)
+) as Alice:
 
             for i in range(BB84_NUM_QUBITS):
 
