@@ -28,11 +28,6 @@ NODE_ROLE = os.getenv(
 # SYSTEM MODE
 # =========================================================
 
-"""
-ETSI:
-Hybrid Quantum-Classical ETSI-QKD mode
-"""
-
 SYSTEM_MODE = "ETSI"
 
 SYNC_ENABLED = True
@@ -57,40 +52,25 @@ KEY_REGENERATION_INTERVAL = 30
 # QUANTUM CHANNEL
 # =========================================================
 
-"""
-Quantum channel responsibilities:
-- qubit exchange
-- BB84 state transmission
-- quantum key generation
-"""
-
 QUANTUM_CHANNEL_TYPE = "SIMULAQRON"
 
-SIMULAQRON_ALICE_IP = os.getenv(
-    "SIMULAQRON_ALICE_IP",
-    "10.11.80.93"
-)
+SIMULAQRON_ALICE_IP = "10.11.80.93"
 
-SIMULAQRON_BOB_IP = os.getenv(
-    "SIMULAQRON_BOB_IP",
-    "10.11.80.94"
-)
+SIMULAQRON_BOB_IP = "10.11.80.94"
 
-SIMULAQRON_ALICE_PORT = 8016
-SIMULAQRON_BOB_PORT = 8019
+# WORKING PORTS
+SIMULAQRON_ALICE_PORT = 8001
+
+SIMULAQRON_BOB_PORT = 8004
 
 
 # =========================================================
 # BB84 CONFIGURATION
 # =========================================================
 
-BB84_NUM_QUBITS = 1
+BB84_NUM_QUBITS = 10
 
 BB84_BASIS_VALUES = [0, 1]
-
-"""
-Acceptable BB84 QBER threshold.
-"""
 
 MAX_QBER_THRESHOLD = 0.11
 
@@ -103,12 +83,9 @@ SYNC_SEED = "QKD_SHARED_SEED_2026"
 
 ENABLE_SHA256_SYNC = True
 
-"""
-ONLY metadata is synchronized publicly.
-Raw keys NEVER leave local nodes.
-"""
+ENABLE_METADATA_SYNC = False
 
-METADATA_SYNC_ONLY = True
+METADATA_SYNC_ONLY = False
 
 
 # =========================================================
@@ -124,72 +101,16 @@ SESSION_TIMEOUT_SECONDS = 300
 # DEPLOYMENT
 # =========================================================
 
-"""
-LOCAL:
-localhost deployment
-
-REMOTE:
-IITR ↔ IITJ deployment
-"""
-
-DEPLOYMENT_MODE = os.getenv(
-    "DEPLOYMENT_MODE",
-    "LOCAL"
-)
-
-
-# =========================================================
-# NETWORK CONFIGURATION
-# =========================================================
-
-IITR_NGROK_URL = os.getenv(
-    "IITR_URL"
-)
-
-IITJ_NGROK_URL = os.getenv(
-    "IITJ_URL"
-)
+DEPLOYMENT_MODE = "REMOTE"
 
 
 # =========================================================
 # PUBLIC CLASSICAL CHANNEL
 # =========================================================
 
-"""
-Public channel responsibilities:
-- ETSI APIs
-- FastAPI communication
-- metadata synchronization
-- SHA-256 verification
-- session negotiation
-"""
+IITR_BASE_URL = "http://10.11.80.93:8000"
 
-if DEPLOYMENT_MODE == "LOCAL":
-
-    IITR_IP = "127.0.0.1"
-    IITJ_IP = "127.0.0.1"
-
-    IITR_BASE_URL = (
-        f"http://{IITR_IP}:8000"
-    )
-
-    IITJ_BASE_URL = (
-        f"http://{IITJ_IP}:8001"
-    )
-
-else:
-
-    IITR_BASE_URL = (
-        IITR_NGROK_URL
-        if IITR_NGROK_URL
-        else "http://103.37.201.5:8000"
-    )
-
-    IITJ_BASE_URL = (
-        IITJ_NGROK_URL
-        if IITJ_NGROK_URL
-        else "http://14.139.53.130:8001"
-    )
+IITJ_BASE_URL = "http://10.11.80.94:8001"
 
 
 # =========================================================
@@ -236,10 +157,6 @@ PEER_NODES = {
 
 def get_peer_url():
 
-    """
-    Returns opposite peer URL.
-    """
-
     if NODE_ID == "IITR":
         return PEER_NODES["IITJ"]
 
@@ -249,10 +166,6 @@ def get_peer_url():
 # =========================================================
 # KEY CONFIGURATION
 # =========================================================
-
-"""
-Quantum-derived AES session keys.
-"""
 
 KEY_SIZE = 256
 
@@ -278,7 +191,7 @@ KEY_ROTATION_INTERVAL = 60
 # AUTH CONFIGURATION
 # =========================================================
 
-AUTH_ENABLED = True
+AUTH_ENABLED = False
 
 AUTH_TOKEN = (
     "ETSI_DEMO_SECURE_TOKEN_2026"
@@ -304,7 +217,7 @@ INTERKMS_SYNC_INTERVAL = 10
 # METADATA SYNCHRONIZATION
 # =========================================================
 
-ENABLE_METADATA_SYNC = True
+ENABLE_METADATA_SYNC = False
 
 SYNC_METADATA_FIELDS = [
 
@@ -330,10 +243,6 @@ HASH_ALGORITHM = "SHA-256"
 # =========================================================
 # CRYPTOGRAPHY
 # =========================================================
-
-"""
-AES-GCM uses BB84-derived keys.
-"""
 
 ENCRYPTION_ALGORITHM = "AES-256-GCM"
 
@@ -364,7 +273,7 @@ DASHBOARD_PORT = 8501
 # REVERSE PROXY
 # =========================================================
 
-ENABLE_CADDY_PROXY = True
+ENABLE_CADDY_PROXY = False
 
 REVERSE_PROXY_PORT = 443
 
@@ -373,7 +282,7 @@ REVERSE_PROXY_PORT = 443
 # NGROK
 # =========================================================
 
-ENABLE_NGROK = True
+ENABLE_NGROK = False
 
 
 # =========================================================
@@ -403,41 +312,62 @@ ENABLE_SDN_ROUTING = False
 ENABLE_MULTI_NODE_QKD = False
 
 ENABLE_TELEPORTATION = True
+# =========================================================
+# REPLAY PROTECTION
+# =========================================================
+
+ENABLE_REPLAY_PROTECTION = True
+
+REPLAY_WINDOW_SECONDS = 60
 
 
 # =========================================================
-# FINAL ARCHITECTURE
+# MESSAGE SECURITY
 # =========================================================
 
-"""
-ARCHITECTURE OVERVIEW
-=====================
+ENABLE_MESSAGE_AUTH = True
 
-Quantum Layer
---------------
-- SimulaQron
-- BB84
-- Qubit transmission
-- Quantum key generation
+ENABLE_MESSAGE_ENCRYPTION = True
 
-Public Classical Channel
--------------------------
-- FastAPI
-- ETSI APIs
-- Metadata synchronization
-- SHA-256 verification
-- Session negotiation
 
-Secure Communication Layer
----------------------------
-- AES-GCM
-- Encrypted messaging
-- File transfer
+# =========================================================
+# FILE TRANSFER
+# =========================================================
 
-Deployment
------------
-- IITR ↔ IITJ
-- ngrok
-- Reverse proxy
-- Inter-institute communication
-"""
+ENABLE_FILE_TRANSFER = True
+
+MAX_FILE_SIZE_MB = 100
+
+
+# =========================================================
+# API SECURITY
+# =========================================================
+
+ENABLE_API_TOKEN_AUTH = False
+
+
+# =========================================================
+# PERFORMANCE
+# =========================================================
+
+ENABLE_PERFORMANCE_METRICS = True
+
+
+# =========================================================
+# STORAGE
+# =========================================================
+
+ENABLE_PERSISTENT_STORAGE = False
+# =========================================================
+# SYNC CONFIGURATION
+# =========================================================
+
+MAX_SYNC_DRIFT = 5
+
+SYNC_RETRY_LIMIT = 3
+
+SYNC_TIMEOUT_SECONDS = 10
+
+ENABLE_AUTO_RESYNC = True
+
+ENABLE_CLOCK_SYNC = True
