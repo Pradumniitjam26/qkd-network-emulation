@@ -1,5 +1,7 @@
+# =========================================================
 # message_api.py
-# ADVANCED HYBRID QUANTUM-CLASSICAL QKD MESSAGE API
+# HYBRID QUANTUM-CLASSICAL QKD MESSAGE API
+# =========================================================
 
 from fastapi import (
     APIRouter,
@@ -19,22 +21,16 @@ from audit import AuditLogger
 
 from config import (
 
-    AUTH_TOKEN,
-
     PEER_NODES,
     NODE_ID,
 
     SYSTEM_MODE,
     QKD_PROTOCOL,
 
-    ENABLE_SHA256_SYNC,
     ENABLE_REPLAY_PROTECTION
 )
 
-import hashlib
-import hmac
 import time
-import uuid
 
 from datetime import datetime
 
@@ -85,45 +81,6 @@ def set_buffer(buffer):
     global buffer_ref
 
     buffer_ref = buffer
-
-# =========================================================
-# SHA-256
-# =========================================================
-
-def sha256_hash(
-    key_material: str
-):
-
-    return hashlib.sha256(
-
-        bytes.fromhex(key_material)
-
-    ).hexdigest()
-
-# =========================================================
-# CONSTANT-TIME HASH VERIFY
-# =========================================================
-
-def verify_sync(
-
-    local_key,
-
-    received_hash
-):
-
-    if not ENABLE_SHA256_SYNC:
-        return True
-
-    local_hash = sha256_hash(
-        local_key
-    )
-
-    return hmac.compare_digest(
-
-        local_hash,
-
-        received_hash
-    )
 
 # =========================================================
 # VERIFY NONCE
@@ -179,40 +136,7 @@ def verify_message_id(
     return True
 
 # =========================================================
-# VERIFY TIMESTAMP
-# =========================================================
-
-def verify_timestamp(
-    metadata
-):
-
-    timestamp = metadata.get(
-        "timestamp"
-    )
-
-    if not timestamp:
-        return False
-
-    try:
-
-        current = time.time()
-
-        remote = float(timestamp)
-
-        drift = abs(
-            current - remote
-        )
-
-        if drift > 120:
-            return False
-
-    except:
-        return False
-
-    return True
-
-# =========================================================
-# AUTH
+# AUTH DISABLED
 # =========================================================
 
 def verify_token(
@@ -222,67 +146,7 @@ def verify_token(
 
 ):
 
-    if not credentials:
-
-        raise HTTPException(
-
-            status_code=401,
-
-            detail="Missing credentials"
-        )
-
-    if credentials.scheme != "Bearer":
-
-        raise HTTPException(
-
-            status_code=401,
-
-            detail="Invalid auth scheme"
-        )
-
-    if credentials.credentials != AUTH_TOKEN:
-
-        raise HTTPException(
-
-            status_code=401,
-
-            detail="Invalid token"
-        )
-
-    return True
-
-# =========================================================
-# VERIFY METADATA
-# =========================================================
-
-def verify_metadata(
-    metadata
-):
-
-    required = [
-
-        "session_id",
-
-        "protocol",
-
-        "timestamp"
-    ]
-
-    for field in required:
-
-        if field not in metadata:
-
-            return False
-
-    if metadata["protocol"] != QKD_PROTOCOL:
-
-        return False
-
-    if not verify_timestamp(
-        metadata
-    ):
-
-        return False
+    # AUTH DISABLED FOR LAN TESTING
 
     return True
 
@@ -362,21 +226,12 @@ async def receive_message(
         )
 
     # =====================================================
-    # METADATA
+    # VALIDATION DISABLED FOR LAN TESTING
     # =====================================================
 
-    valid_metadata = verify_metadata(
-        metadata
-    )
+    valid_metadata = True
 
-    if not valid_metadata:
-
-        raise HTTPException(
-
-            status_code=403,
-
-            detail="Invalid metadata"
-        )
+    verified = True
 
     # =====================================================
     # REPLAY
@@ -466,43 +321,6 @@ async def receive_message(
         )
 
     # =====================================================
-    # HASH
-    # =====================================================
-
-    received_hash = metadata.get(
-        "key_hash"
-    )
-
-    if received_hash:
-
-        verified = verify_sync(
-
-            key_obj.key_value,
-
-            received_hash
-        )
-
-        audit.hash_verification(
-            key_id,
-            verified
-        )
-
-        if not verified:
-
-            audit.sync_fail(key_id)
-
-            raise HTTPException(
-
-                status_code=403,
-
-                detail="SHA-256 verification failed"
-            )
-
-        audit.sync_success(
-            key_id
-        )
-
-    # =====================================================
     # SESSION
     # =====================================================
 
@@ -542,18 +360,6 @@ async def receive_message(
                 sync_index
         )
 
-        if received_hash:
-
-            verified = ce.verify_hash(
-                received_hash
-            )
-
-            if not verified:
-
-                raise Exception(
-                    "Hash mismatch"
-                )
-
         plaintext = ce.decrypt(
 
             iv,
@@ -568,21 +374,11 @@ async def receive_message(
 
         decryption_failures += 1
 
-        audit.error(
-
-            (
-                f"Decryption failed: "
-                f"{str(e)}"
-            ),
-
-            plane="APP"
-        )
-
         raise HTTPException(
 
             status_code=500,
 
-            detail="AES-GCM decryption failed"
+            detail=f"Decryption failed: {e}"
         )
 
     latency = (
@@ -639,23 +435,6 @@ async def receive_message(
     print("\n" + "=" * 65)
 
     # =====================================================
-    # AUDIT
-    # =====================================================
-
-    audit.log(
-
-        "MESSAGE_RECEIVED",
-
-        (
-            f"key_id={key_id} "
-            f"session={session_id} "
-            f"delivery={delivery_id}"
-        ),
-
-        "APP"
-    )
-
-    # =====================================================
     # RESPONSE
     # =====================================================
 
@@ -687,177 +466,7 @@ async def receive_message(
     }
 
 # =========================================================
-# RECEIVE FILE
-# =========================================================
-
-@router.post("/receive-file")
-async def receive_file(
-
-    request: Request,
-
-    auth: bool = Depends(verify_token)
-):
-
-    global received_files
-    global decryption_failures
-
-    audit.api("/receive-file")
-
-    try:
-
-        data = await request.json()
-
-    except Exception:
-
-        raise HTTPException(
-
-            status_code=400,
-
-            detail="Invalid JSON"
-        )
-
-    chunks = data.get("chunks")
-
-    metadata = data.get(
-        "metadata",
-        {}
-    )
-
-    if not chunks:
-
-        raise HTTPException(
-
-            status_code=400,
-
-            detail="Missing chunks"
-        )
-
-    valid_metadata = verify_metadata(
-        metadata
-    )
-
-    if not valid_metadata:
-
-        raise HTTPException(
-
-            status_code=403,
-
-            detail="Invalid metadata"
-        )
-
-    decrypted_output = b""
-
-    chunk_counter = 0
-
-    for chunk in chunks:
-
-        try:
-
-            nonce = chunk.get("nonce")
-
-            if nonce:
-
-                valid_nonce = verify_nonce(
-                    nonce
-                )
-
-                if not valid_nonce:
-
-                    raise Exception(
-                        "Replay nonce"
-                    )
-
-            key_id = chunk["key_id"]
-
-            key_obj = buffer_ref.get_key_by_id(
-                key_id
-            )
-
-            if not key_obj:
-
-                raise Exception(
-                    f"Missing key {key_id}"
-                )
-
-            ce = CryptoEngine(
-
-                key_hex=
-                    key_obj.key_value,
-
-                key_id=
-                    key_id,
-
-                mode=
-                    SYSTEM_MODE
-            )
-
-            plaintext = ce.decrypt(
-
-                bytes.fromhex(
-                    chunk["iv"]
-                ),
-
-                bytes.fromhex(
-                    chunk["ciphertext"]
-                ),
-
-                bytes.fromhex(
-                    chunk["tag"]
-                )
-            )
-
-            decrypted_output += plaintext
-
-            chunk_counter += 1
-
-        except Exception as e:
-
-            decryption_failures += 1
-
-            audit.error(
-
-                (
-                    f"Chunk decryption failed: "
-                    f"{str(e)}"
-                ),
-
-                "APP"
-            )
-
-            raise HTTPException(
-
-                status_code=500,
-
-                detail="File decryption failed"
-            )
-
-    received_files += 1
-
-    audit.log(
-
-        "FILE_RECEIVED",
-
-        (
-            f"chunks={chunk_counter}"
-        ),
-
-        "APP"
-    )
-
-    return {
-
-        "status":
-            "success",
-
-        "chunks":
-            chunk_counter,
-
-        "size":
-            len(decrypted_output)
-    }
-
-# =========================================================
-# METRICS
+# MESSAGE METRICS
 # =========================================================
 
 @router.get("/message-metrics")
