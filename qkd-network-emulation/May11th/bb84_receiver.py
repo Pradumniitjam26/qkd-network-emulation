@@ -93,7 +93,7 @@ class BB84Receiver:
 
         with CQCConnection(
             "Bob",
-            socket_address=("10.11.80.93", 8005)
+            socket_address=("10.11.80.93", 8004)
         ) as Bob:
 
             for i in range(N):
